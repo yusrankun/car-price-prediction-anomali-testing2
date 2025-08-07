@@ -5,7 +5,15 @@ import joblib
 
 # --- Load trained model ---
 model = joblib.load('best_model_LightGBM.pkl')
-
+# --- Check if model is pipeline ---
+if hasattr(model, 'named_steps'):
+    preprocessor = model.named_steps['preprocessor']
+    expected_cols = preprocessor.feature_names_in_
+    num_cols = preprocessor.transformers_[0][2]
+    cat_cols = preprocessor.transformers_[1][2]
+else:
+    st.error("Model does not contain preprocessing pipeline. Please re-export with preprocessing included.")
+    st.stop()
 # --- Get expected columns from the pipeline ---
 preprocessor = model.named_steps['preprocessor']
 expected_cols = preprocessor.feature_names_in_
