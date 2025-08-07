@@ -39,7 +39,7 @@ fuel_gear_options = [
 doors_category_options = ['4-5', '2-3']
 
 # Streamlit UI
-st.title("🚗 Car Price Prediction (LightGBM)")
+st.title("🚗 Car Price Prediction")
 
 st.markdown("Masukkan detail mobil di bawah ini untuk memprediksi harga jual.")
 
