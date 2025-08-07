@@ -4,8 +4,7 @@ import numpy as np
 import joblib
 
 # Load model dan expected columns
-model = joblib.load('best_model_LightGBM.pkl')
-expected_cols = model.named_steps['preprocessor'].feature_names_in_
+model, expected_cols = joblib.load('best_model_LightGBM.pkl')
 
 st.title("Car Price Prediction 🚗")
 
