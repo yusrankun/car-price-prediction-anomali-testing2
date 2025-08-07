@@ -1,78 +1,53 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import joblib
 
-# Load model pipeline
-model_pipeline = joblib.load("best_model_LightGBM.pkl")
+# --- Load trained pipeline ---
+model = joblib.load("best_model_LightGBM.pkl")
 
-st.title("🚗 Car Price Prediction App")
+# --- Check pipeline structure ---
+if not hasattr(model, 'named_steps') or 'preprocessor' not in model.named_steps:
+    st.error("Model does not contain preprocessing pipeline. Please re-export with preprocessing included.")
+    st.stop()
 
-st.markdown("Masukkan detail mobil di bawah ini untuk memprediksi harganya.")
+preprocessor = model.named_steps['preprocessor']
+expected_cols = preprocessor.feature_names_in_
+num_cols = preprocessor.transformers_[0][2]
+cat_cols = preprocessor.transformers_[1][2]
 
-# Input fields
+# --- Define binary features to display as Yes/No ---
+binary_features = ['Leather interior', 'Right_hand_drive', 'is_premium']
 
-Levy = st.number_input("Levy", min_value=0.0, step=10.0)
-Leather_interior = st.selectbox("Leather interior", ["Yes", "No"])
-Mileage = st.number_input("Mileage (km)", min_value=0.0, step=1000.0)
-Doors = st.number_input("Doors", min_value=2, max_value=5)
-Airbags = st.number_input("Airbags", min_value=0, step=1)
-Right_hand_drive = st.selectbox("Right hand drive", ["Yes", "No"])
-volume_per_cylinder = st.number_input("Volume per cylinder", min_value=0.0, step=0.1)
-car_age = st.number_input("Car Age", min_value=0, max_value=50)
-is_premium = st.selectbox("Is Premium?", ["Yes", "No"])
-Model_encoded = st.number_input("Model encoded", min_value=0)
+# --- Streamlit UI ---
+st.title("🚗 Car Price Prediction with LightGBM")
 
-# --- Categorical columns from your list
-Manufacturer = st.selectbox("Manufacturer", [
-    'LEXUS', 'CHEVROLET', 'HONDA', 'FORD', 'HYUNDAI', 'TOYOTA', 'MERCEDES-BENZ',
-    'OPEL', 'Rare', 'BMW', 'AUDI', 'NISSAN', 'SUBARU', 'KIA', 'MITSUBISHI',
-    'SSANGYONG', 'VOLKSWAGEN'
-])
+user_input = {}
 
-Model = st.selectbox("Model", [
-    'Rare', 'FIT', 'Santa FE', 'Prius', 'Sonata', 'Camry', 'E 350', 'Elantra',
-    'Highlander', 'X5', 'H1', 'Aqua', 'Civic', 'Tucson', 'Cruze', 'Fusion',
-    'REXTON', 'Actyon', 'Optima'
-])
+for col in expected_cols:
+    if col in num_cols:
+        if col in binary_features:
+            val = st.selectbox(f"{col}", ['Yes', 'No'])
+            user_input[col] = 1 if val == 'Yes' else 0
+        else:
+            user_input[col] = st.number_input(f"{col}", value=0.0)
+    elif col in cat_cols:
+        user_input[col] = st.text_input(f"{col}", value="")
 
-Category = st.selectbox("Category", [
-    'Jeep', 'Hatchback', 'Sedan', 'Rare', 'Universal', 'Coupe', 'Minivan'
-])
+# --- Convert to DataFrame ---
+input_df = pd.DataFrame([user_input])
 
-Drive_wheels = st.selectbox("Drive wheels", ['4x4', 'Front', 'Rear'])
+# --- Reorder columns ---
+input_df = input_df.reindex(columns=expected_cols)
 
-fuel_gear = st.selectbox("Fuel / Gear", [
-    'Hybrid_Automatic', 'Petrol_Tiptronic', 'Petrol_Variator', 'Petrol_Automatic',
-    'Diesel_Automatic', 'CNG_Manual', 'Rare', 'CNG_Automatic', 'Hybrid_Tiptronic',
-    'Hybrid_Variator', 'Petrol_Manual', 'LPG_Automatic', 'Diesel_Manual'
-])
+# --- Coerce numeric + fill missing categoricals ---
+input_df[num_cols] = input_df[num_cols].apply(pd.to_numeric, errors='coerce')
+input_df[cat_cols] = input_df[cat_cols].fillna("Unknown")
 
-Doors_category = st.selectbox("Doors category", ['4-5', '2-3'])
-
-# Predict button
-if st.button("Predict"):
+# --- Predict ---
+if st.button("Predict Price"):
     try:
-        input_data = pd.DataFrame([{
-            "Levy": Levy,
-            "Leather interior": Leather_interior,
-            "Mileage": Mileage,
-            "Doors": Doors,
-            "Airbags": Airbags,
-            "Right_hand_drive": Right_hand_drive,
-            "volume_per_cylinder": volume_per_cylinder,
-            "car_age": car_age,
-            "is_premium": is_premium,
-            "Model_encoded": Model_encoded,
-            "Manufacturer": Manufacturer,
-            "Model": Model,
-            "Category": Category,
-            "Drive wheels": Drive_wheels,
-            "fuel_gear": fuel_gear,
-            "Doors_category": Doors_category
-        }])
-
-        prediction = model_pipeline.predict(input_data)[0]
-        st.success(f"💰 Predicted Price: {prediction:,.2f} GEL")
-
+        prediction = model.predict(input_df)[0]
+        st.success(f"💰 Estimated Car Price: ${prediction:,.2f}")
     except Exception as e:
         st.error(f"Prediction failed: {e}")
