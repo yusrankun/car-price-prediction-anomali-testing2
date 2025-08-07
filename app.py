@@ -3,7 +3,7 @@ import pandas as pd
 import joblib
 
 # Load model LightGBM
-model = joblib.load('lightgbm_best_model.pkl')
+model = joblib.load('best_model_LightGBM.pkl')
 
 st.title("Prediksi Harga Mobil - LightGBM")
 
